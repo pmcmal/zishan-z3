@@ -303,6 +303,17 @@ To realnie oznacza, że **dalsza edycja tekstu menu jest zablokowana** do czasu 
 
 **Co WCIĄŻ ma sens robić w Ghidrze na `z3app.bin`** (mimo że nie rozwiąże to checksumy): zrozumienie WŁASNEGO kodu aplikacji — jak dokładnie referowana jest tabela stringów menu (sekcja "Otwarte pytania"), co robią te dwa wskaźniki `0x0812xxxx`/`0x080Exxxx` sąsiadujące z tekstem. To przygotowuje grunt na później, gdyby udało się zdobyć dump bootloadera.
 
+#### Sesja w Ghidrze (2026-07-10) — wyniki
+
+Zaimportowano `z3app.bin` jako Raw Binary, język `ARM:LE:32:Cortex`, adres bazowy domyślny (0x0 — nieznany prawdziwy adres ładowania, patrz sekcja 3).
+
+- **Domyślna auto-analiza:** rozpoznała bardzo mało kodu (plik w większości potraktowany jako dane) — bez rozpoznanej tablicy wektorów przerwań na starcie, Ghidra nie miała punktu zaczepienia do zaczęcia dysasemblacji.
+- **Ręczne wymuszenie dekodowania** pod `0x5c000` (Thumb) dało sensowny wynik: `str r7,[r0,r2]` / `ldmia r7,{r0,r1,r2,r7}` / `pop {r5,r6,r7,pc}` — **to potwierdza, że w pliku jest prawdziwy, poprawny kod Thumb**, tylko Ghidra nie wie gdzie go szukać bez znanego adresu bazowego.
+- **Analizator "ARM Aggressive Instruction Finder"** (szuka wzorców kodu w całym pliku bez potrzeby znanej tablicy wektorów): uruchomiony, ale znalazł tylko **~10-20 funkcji** w pliku 760 KB — bardzo mało w stosunku do realnej wielkości aplikacji (setki/tysiące funkcji dla pełnego UI+audio DAP). Rozgałęzienia/wywołania prawdopodobnie się "gubią" bez poprawnego adresu bazowego.
+- **XREF dla `0xB97EA` ("English"):** sprawdzone przed i po agresywnej analizie — **brak jakiegokolwiek odwołania z kodu, w obu przypadkach.** Zgadza się z wcześniejszym wynikiem ręcznego brute-force szukania wskaźników (sekcja "Otwarte pytania") — żadna metoda nie znalazła kodu odwołującego się do tego stringa.
+
+**Wniosek z całej sesji:** to jest realna granica tego, co da się wycisnąć z samej statycznej analizy `z3app.bin` bez znanego adresu bazowego ładowania. Żeby pójść dalej trzeba albo (a) ustalić prawdziwy adres bazowy (np. znajdując dokumentację/inny firmware tej samej rodziny z znanym adresem, albo metodą prób — testując różne adresy bazowe i patrząc czy więcej kodu/XREF-ów "się złoży"), albo (b) zdobyć dump bootloadera przez SWD, który być może zawiera wskazówki (np. jak sam bootloader interpretuje/rebazuje ten plik przy flashowaniu).
+
 ### Krok 4 — Jeśli krok 1 wypadnie negatywnie (brak glifów)
 
 Trzeba będzie:

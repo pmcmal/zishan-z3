@@ -288,6 +288,21 @@ Liczba `1169242` (`0x11D75A`) wyświetlana na ekranie to najpewniej albo obliczo
 2. Zidentyfikować algorytm sumy kontrolnej i offset w pliku, gdzie oczekiwana wartość jest przechowywana (prawdopodobnie w nagłówku, pierwsze 16-32 bajty pliku, które od początku analizy nie pasowały do standardowej tablicy wektorów ARM — patrz sekcja 3, mogą to być właśnie pola magic/rozmiar/checksum, nie wektory przerwań).
 3. Dodać do `tools/patch_strings.py` automatyczne przeliczenie i zapis poprawnej sumy po każdej edycji.
 
+#### 🛑 Potwierdzone (2026-07-10): kodu sprawdzajacego NIE MA w z3app.bin
+
+Sprawdzono: żaden z komunikatów bootloadera ("Checking", "Erase", "Program flash", "Bin OK") **nie istnieje jako string w `z3app.bin`**. Sprawdzono też, czy `1169242` (`0x11D75A`) jest zapisane jako stała wartość referencyjna gdziekolwiek w oryginalnym pliku (LE32/BE32/LE24) — też nie.
+
+**Wniosek: bootloader, który wyświetla te komunikaty i liczy sumę kontrolną, to zupełnie OSOBNY program, żyjący w innym, chronionym regionie wewnętrznej flashy STM32F427 — nie jest częścią pliku aktualizacji `z3app.bin` w ogóle.** Ghidra uruchomiona na `z3app.bin` **nie znajdzie** tej funkcji, bo jej tam nie ma — to nie jest kwestia szukania lepiej, tylko fizycznej nieobecności kodu w tym pliku.
+
+**Żeby faktycznie znaleźć algorytm sumy kontrolnej, potrzebny byłby zrzut (dump) całej zawartości flash mikrokontrolera prosto z płytki** — czyli:
+1. Sprzętowy debugger SWD (np. ST-Link V2, klon za ~20-40 zł) podłączony do punktów testowych SWDIO/SWCLK/GND/3.3V na płycie Z3 (masz gołą płytkę, więc to realne, o ile te punkty są dostępne/opisane).
+2. Narzędzie typu STM32CubeProgrammer albo OpenOCD do odczytu całej flashy (nie tylko regionu aplikacji).
+3. **Warunek, który może to zablokować:** jeśli producent włączył ochronę odczytu (RDP - Readout Protection) na tym STM32, odczyt przez SWD będzie zablokowany. To bardzo częste w produktach komercyjnych właśnie żeby uniemożliwić to, co robimy. Nie da się tego sprawdzić bez faktycznego podłączenia debuggera.
+
+To realnie oznacza, że **dalsza edycja tekstu menu jest zablokowana** do czasu zdobycia (a) dumpu całej flashy przez SWD, albo (b) innego sposobu na wyłączenie/obejście walidacji sumy kontrolnej. To wykracza poza czystą analizę pliku — wymaga sprzętu i fizycznego dostępu do płytki.
+
+**Co WCIĄŻ ma sens robić w Ghidrze na `z3app.bin`** (mimo że nie rozwiąże to checksumy): zrozumienie WŁASNEGO kodu aplikacji — jak dokładnie referowana jest tabela stringów menu (sekcja "Otwarte pytania"), co robią te dwa wskaźniki `0x0812xxxx`/`0x080Exxxx` sąsiadujące z tekstem. To przygotowuje grunt na później, gdyby udało się zdobyć dump bootloadera.
+
 ### Krok 4 — Jeśli krok 1 wypadnie negatywnie (brak glifów)
 
 Trzeba będzie:

@@ -1,0 +1,17 @@
+15 matched lines out of 9574
+
+0x0b7959 (4 chars): 播放界面
+0x0b7977 (3 chars): 文件浏
+0x0b7998 (2 chars): 设置
+0x0b79cc (2 chars): 系统
+0x0b90f7 (2 chars): 删除
+0x0b911b (4 chars): 无法播放
+0x0b9388 (2 chars): 版本
+0x0b9500 (5 chars): 未知艺术家
+0x0b950e (2 chars): 专辑
+0x0b966e (4 chars): 背光时间
+0x0b967c (2 chars): 语言
+0x0b97d6 (2 chars): 关于
+0x0b97fa (2 chars): 循环
+0x0b9801 (2 chars): 随机
+0x0b980a (2 chars): 单曲

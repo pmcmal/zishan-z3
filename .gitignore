@@ -1,0 +1,11 @@
+# Rozpakowana zawartość .rar - odtwarzalna w 5 sekund, nie ma sensu trzymać w git
+extracted_z3/
+
+# Firmware Z2 - poza zakresem tego repo (tylko Z3)
+extracted_z2/
+ZiShan_Z2_0.3.rar
+
+# Typowe śmieci
+__pycache__/
+*.pyc
+.DS_Store

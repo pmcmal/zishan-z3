@@ -24,14 +24,18 @@ Analysis and modification attempt of the **ZiShan Z3** DAP firmware (Hi-Fi playe
 
 ### Status projektu
 
-🟡 **W trakcie analizy.** Namierzone i zmapowane wszystkie stringi UI (menu, błędy, formaty audio) oraz tabela znaków Unicode silnika czcionek. Testy na żywym urządzeniu potwierdziły, że:
+🛑 **Zapauzowane — zablokowane sprzętowo.** Statyczna analiza pliku firmware doszła do realnej granicy — dalszy postęp wymaga dumpu flash przez SWD (debugger + gołe punkty testowe na płycie), nie samej analizy plików. Zapisane tu jako punkt startowy dla kogoś (może Ciebie?), kto ma taki debugger i chce pociągnąć dalej.
 
-- ✅ ASCII (angielski) — działa bez problemu
-- ✅ Chiński (GBK, uproszczony + tradycyjny) — działa bez problemu
-- ❌ Polskie znaki diakrytyczne (ą ć ę ł ń ó ś ź ż) — **nie działają w praktyce** (mimo że są zarejestrowane w tabeli czcionek), wyświetla się `?` i plik się nie odtwarza
-- 🛑 **Bootloader waliduje sumę kontrolną pliku** — nawet 1 zmieniony bajt powoduje zawieszenie na "Checking bin" (potwierdzone testem). Algorytm nieznany, wymaga dezasemblacji (Ghidra) do dalszej pracy nad edycją tekstu
+Co ustalono, w skrócie (pełne szczegóły: **[docs/ANALIZA.md](docs/ANALIZA.md)**):
 
-Pełne, szczegółowe znaleziska: **[docs/ANALIZA.md](docs/ANALIZA.md)**
+- ✅ Zmapowane wszystkie stringi UI (menu, błędy, formaty audio) i tabela znaków Unicode silnika czcionek
+- ✅ ASCII (angielski) i chiński (GBK, uproszczony + tradycyjny) w nazwach plików — działają bez problemu na urządzeniu
+- ❌ Polskie znaki diakrytyczne (ą ć ę ł ń ó ś ź ż) — **nie działają w praktyce** (mimo że są zarejestrowane w tabeli czcionek silnika), wyświetla się `?` i plik się nie odtwarza
+- 🛑 **Bootloader waliduje sumę kontrolną pliku przed flashowaniem** — nawet 1 zmieniony bajt powoduje zawieszenie na "Checking bin" (potwierdzone testem na urządzeniu — oryginał flashuje się gładko, zmodyfikowany plik wisi). Wypróbowano CRC32/CRC16/Fletcher16/Adler32/proste sumy — żaden nie zgadza się z obserwowaną wartością
+- 🛑 **Kod bootloadera (ten, który liczy checksum) nie jest częścią pliku `z3app.bin`** — potwierdzone (żadne z jego komunikatów nie istnieją jako stringi w tym pliku). Żyje w osobnym, niedostępnym regionie flash STM32
+- 🛑 **Analiza w Ghidrze (import ARM:LE:32:Cortex) potwierdza realny kod Thumb w pliku**, ale bez znanego adresu bazowego ładowania nie da się automatycznie znaleźć, co odwołuje się do stringów menu — auto-analiza + "ARM Aggressive Instruction Finder" znalazły tylko ~10-20 funkcji w pliku 760KB
+
+**Co by odblokowało dalszą pracę:** dump całej flashy STM32F427 przez SWD (ST-Link + punkty testowe na płycie) — dałoby to zarówno kod bootloadera z algorytmem checksumy, jak i prawdziwy adres bazowy do dalszej analizy kodu aplikacji. Wymaga sprzętu (debugger) i sprawdzenia czy nie jest włączone RDP (ochrona odczytu).
 
 ### Co już wiadomo
 
@@ -39,10 +43,11 @@ Pełne, szczegółowe znaleziska: **[docs/ANALIZA.md](docs/ANALIZA.md)**
 |---|---|
 | Chip | STM32F427 (ARM Cortex-M4) |
 | DAC | CS43198 / ES9038 (wariant sprzętowy) |
-| Szyfrowanie firmware? | Nie wykryto |
+| Szyfrowanie firmware? | Nie wykryto (ale JEST walidacja checksumy — patrz wyżej) |
 | Lokalizacja tekstu menu | Znaleziona (`0xB90F7`–`0xB9834` w `z3app.bin` v0.5) |
+| Bezpieczna podmiana tekstu (bez zmiany długości) | Metoda działa technicznie (zweryfikowana bit-po-bicie), ale **nie da się przetestować na urządzeniu** bez najpierw rozwiązania checksumy |
 | Polski z ogonkami (ą, ć, ę...) | Potwierdzone testem: **nie działa** — wymaga patcha kodu + prawdopodobnie nowych bitmap fontu |
-| Polski bez ogonków (Jezyk, Ustawienia...) | Realistyczne — czyste ASCII już działa, wymaga tylko bezpiecznej podmiany tekstu |
+| Polski bez ogonków (Jezyk, Ustawienia...) | Technicznie przygotowane (skrócone etykiety: Ust/Syst/Jez/Wers/Info), ale zablokowane tym samym problemem checksumy |
 
 Szczegóły, metodologia i dowody: [docs/ANALIZA.md](docs/ANALIZA.md).
 
@@ -77,7 +82,10 @@ Wypakowany `z3app.bin` (`extracted_z3/`) nie jest w repo (patrz `.gitignore`) �
 
 - [ ] Dezasemblacja (Ghidra) — znaleźć kod odpowiedzialny za konwersję Unicode → wewnętrzne kodowanie i renderowanie tekstu
 - [ ] Sprawdzić, czy chiński tradycyjny jest faktycznie wybieralny z menu (kandydat na podmianę na polski)
-- [ ] Bezpieczna podmiana testowa jednego stringu (np. `"English"` → `"Polski"`)
+- [x] Bezpieczna podmiana testowa jednego stringu (`"English"` → `"Polski"`) — technicznie gotowa, zablokowana checksumą
+- [x] Zmierzony budżet bajtowy dla 5 kolejnych etykiet menu, przygotowane skrócone podmiany (Ust/Syst/Jez/Wers/Info)
+- [x] Sesja w Ghidrze — potwierdzone realne granice analizy bez znanego adresu bazowego
+- [ ] **Zablokowane bez sprzętu:** dump flash przez SWD, żeby znaleźć algorytm checksumy i prawdziwy adres bazowy
 - [ ] Ocena: czy da się dodać realne bitmapy glifów dla ą/ć/ę/ł/ń/ó/ś/ź/ż
 - [ ] Pełne tłumaczenie menu na polski (najpierw bez ogonków, potem — jeśli się uda — z ogonkami)
 
@@ -109,13 +117,18 @@ Wypakowany `z3app.bin` (`extracted_z3/`) nie jest w repo (patrz `.gitignore`) �
 
 ### Project status
 
-🟡 **Analysis in progress.** All UI strings (menu, errors, audio formats) and the font engine's Unicode character table have been located and mapped. On-device tests confirmed:
+🛑 **Paused — blocked on hardware access.** Static analysis of the firmware file has hit a real ceiling — further progress needs a flash dump via SWD (debug probe + bare test points on the board), not more file analysis. Left here as a starting point for whoever (maybe you?) has a debug probe and wants to push further.
 
-- ✅ ASCII (English) — works fine
-- ✅ Chinese (GBK, simplified + traditional) — works fine
+What's been established, in short (full details: **[docs/ANALIZA.md](docs/ANALIZA.md)**, in Polish — will be translated if there's interest):
+
+- ✅ All UI strings (menu, errors, audio formats) and the font engine's Unicode character table are mapped
+- ✅ ASCII (English) and Chinese (GBK, simplified + traditional) in filenames — work fine on the device
 - ❌ Polish diacritics (ą ć ę ł ń ó ś ź ż) — **don't actually work** (even though they're registered in the font's character table) — displays `?` and the file won't even play
+- 🛑 **The bootloader validates a checksum of the whole file before flashing** — even 1 changed byte causes it to hang on "Checking bin" (confirmed on real hardware — the original flashes cleanly, the modified file hangs). Tried CRC32/CRC16/Fletcher16/Adler32/simple sums — none match the observed value
+- 🛑 **The bootloader code (the one computing the checksum) is not part of `z3app.bin`** — confirmed (none of its on-screen messages exist as strings in this file). It lives in a separate, inaccessible flash region
+- 🛑 **Ghidra analysis (imported as ARM:LE:32:Cortex) confirms real Thumb code in the file**, but without a known load base address, there's no automatic way to find what references the menu strings — auto-analysis + the "ARM Aggressive Instruction Finder" only found ~10-20 functions in a 760KB file
 
-Full detailed findings: **[docs/ANALIZA.md](docs/ANALIZA.md)** (in Polish — will be translated if there's interest)
+**What would unblock further work:** a full flash dump of the STM32F427 via SWD (ST-Link + test points on the board) — this would yield both the bootloader code (with the checksum algorithm) and the true load base address for further code analysis. Needs hardware (a debug probe) and checking whether readout protection (RDP) is enabled.
 
 ### What's known so far
 
@@ -123,10 +136,11 @@ Full detailed findings: **[docs/ANALIZA.md](docs/ANALIZA.md)** (in Polish — wi
 |---|---|
 | Chip | STM32F427 (ARM Cortex-M4) |
 | DAC | CS43198 / ES9038 (hardware variant) |
-| Firmware encrypted? | No evidence found |
+| Firmware encrypted? | No evidence found (but there IS checksum validation — see above) |
 | Menu text location | Found (`0xB90F7`–`0xB9834` in `z3app.bin` v0.5) |
+| Safe text substitution (same byte length) | Method works technically (verified bit-for-bit), but **can't be tested on the device** until the checksum is solved |
 | Polish with diacritics (ą, ć, ę...) | Confirmed by test: **doesn't work** — needs a code patch + likely new font glyph bitmaps |
-| Polish without diacritics (Jezyk, Ustawienia...) | Realistic — plain ASCII already works, just needs safe text substitution |
+| Polish without diacritics (Jezyk, Ustawienia...) | Technically prepared (shortened labels: Ust/Syst/Jez/Wers/Info), but blocked by the same checksum issue |
 
 Details, methodology and evidence: [docs/ANALIZA.md](docs/ANALIZA.md) (PL).
 
@@ -159,9 +173,10 @@ The unpacked `z3app.bin` (`extracted_z3/`) is not in the repo (see `.gitignore`)
 
 ### Plans / TODO
 
-- [ ] Disassembly (Ghidra) — find the code responsible for Unicode → internal encoding conversion and text rendering
-- [ ] Check whether Traditional Chinese is actually selectable from the menu (candidate slot to repurpose for Polish)
-- [ ] Safe test substitution of a single string (e.g. `"English"` → `"Polski"`)
+- [x] Safe test substitution of a single string (`"English"` → `"Polski"`) — technically ready, blocked by checksum
+- [x] Measured byte budget for 5 more menu labels, prepared shortened substitutions (Ust/Syst/Jez/Wers/Info)
+- [x] Ghidra session — confirmed the real limits of analysis without a known load base address
+- [ ] **Blocked without hardware:** SWD flash dump, to find the checksum algorithm and the true load base address
 - [ ] Evaluate whether real glyph bitmaps can be added for ą/ć/ę/ł/ń/ó/ś/ź/ż
 - [ ] Full Polish menu translation (first without diacritics, then — if feasible — with them)
 

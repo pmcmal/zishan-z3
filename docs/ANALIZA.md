@@ -224,6 +224,22 @@ Problem praktyczny: chińskie znaki są bardzo "gęste" (1 znak = całe słowo),
 
 Najlepszy pierwszy cel testowy: string **"English"** (`0xB97EA`, 7 bajtów, sam ASCII, izolowany) — podmiana na np. `"Polski"` (6 bajtów, mieści się) jest niskiego ryzyka i łatwo zweryfikować efekt na ekranie (menu wyboru języka).
 
+#### Wykonane (2026-07-10): pierwszy patch testowy
+
+Przygotowany plik: `extracted_z3/z3app_test_polski.bin` (generowany przez `tools/patch_strings.py`, nie jest w repo — patrz `.gitignore` — ale wygenerujesz go w 1 sekundę: `python tools/patch_strings.py extracted_z3/z3app.bin extracted_z3/z3app_test_polski.bin`).
+
+Zmiana: bajty `0xB97EA`–`0xB97F0` (dokładnie 7 bajtów) `"English"` → `"Polski\0"`. Zweryfikowano bit-po-bicie: **zmieniło się wyłącznie tych 7 bajtów**, rozmiar pliku identyczny (761 339 B), sąsiedni bajt (`0x4c`, prawdopodobnie pole binarne, nie tekst) nietknięty.
+
+**Uwaga — nie mam 100% pewności na jakim konkretnie ekranie to "English" się wyświetla.** Znaleziono je w klastrze z 关于/關於 (About) i 循环/随机/单曲 (tryby powtarzania), niedaleko, ale nie w tym samym oczywistym miejscu co 语言 (Language) pod `0xB967C` — więc może to być nazwa języka w menu wyboru, może coś na ekranie "About", może coś nieużywane. **To właśnie sprawdzi test na urządzeniu.**
+
+**Jak przetestować:**
+1. Skopiuj `z3app_test_polski.bin` na kartę SD, **zmień nazwę na `z3app.bin`** (tak jak wymaga bootloader).
+2. Miej gdzieś bezpiecznie oryginalny `z3app.bin` (kopię zapasową) — na wszelki wypadek.
+3. Flashuj jak zwykle (włóż kartę, włącz zasilanie, czekaj aż dioda przestanie migać, usuń plik z karty).
+4. Sprawdź: czy urządzenie normalnie się uruchamia? Czy coś w menu (Language, About, tryby powtarzania) teraz pokazuje "Polski" zamiast "English"? Czy cokolwiek innego wygląda uszkodzone?
+
+Wynik tego testu powie nam dwie rzeczy naraz: (a) czy metoda bezpiecznej podmiany bajtowej w ogóle działa na tym firmware (czy urządzenie nie waliduje sumy kontrolnej itp.), i (b) gdzie faktycznie ten string się wyświetla.
+
 ### Krok 4 — Jeśli krok 1 wypadnie negatywnie (brak glifów)
 
 Trzeba będzie:

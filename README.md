@@ -29,6 +29,7 @@ Analysis and modification attempt of the **ZiShan Z3** DAP firmware (Hi-Fi playe
 - ✅ ASCII (angielski) — działa bez problemu
 - ✅ Chiński (GBK, uproszczony + tradycyjny) — działa bez problemu
 - ❌ Polskie znaki diakrytyczne (ą ć ę ł ń ó ś ź ż) — **nie działają w praktyce** (mimo że są zarejestrowane w tabeli czcionek), wyświetla się `?` i plik się nie odtwarza
+- 🛑 **Bootloader waliduje sumę kontrolną pliku** — nawet 1 zmieniony bajt powoduje zawieszenie na "Checking bin" (potwierdzone testem). Algorytm nieznany, wymaga dezasemblacji (Ghidra) do dalszej pracy nad edycją tekstu
 
 Pełne, szczegółowe znaleziska: **[docs/ANALIZA.md](docs/ANALIZA.md)**
 

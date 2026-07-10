@@ -15,6 +15,7 @@ Cel: sprawdzić, czy i jak można zmodyfikować tekst menu odtwarzacza ZiShan Z3
 | Jaki mikrokontroler? | STM32F427 (ARM Cortex-M4, potwierdzone przez rozpoznane wzorce kodu Thumb-2 i adresy we flashu 0x08000000-0x08200000) | wysoka |
 | Jaki DAC? | Wariant sprzętowy — w tekstach firmware są **obie** nazwy: `CS43198` i `ES9038` (czyli ten sam plik obsługuje różne wersje płyty Z3) | wysoka |
 | Czy plik jest szyfrowany/skompresowany? | Nie widać dowodów szyfrowania. Duża część pliku to prawdopodobnie bitmapy fontów/ikon (stąd wysoka entropia), a nie szyfrogram | średnia-wysoka |
+| Czy jest walidacja integralności (checksum)? | **TAK — potwierdzone testem.** Bootloader zawiesza się na "Checking bin" dla pliku ze zmienioną nawet 1 wartością bajtów. Algorytm nieznany (wykluczono CRC32/CRC16/Fletcher16/Adler32/proste sumy) | wysoka (fakt) / nieznany (algorytm) |
 | Czy jest gdzie szukać tekstu menu? | Tak — mały (~2 KB) obszar na końcu pliku (~0xB90F7–0xB9834) zawiera realne stringi UI: błędy, nazwy formatów, "Language", "About" itd., w chińskim uproszczonym, chińskim tradycyjnym i angielskim | wysoka |
 | Czy silnik fontów obsługuje polskie znaki (ą ć ę ł ń ó ś ź ż)? | Punkty kodowe SĄ w tabeli czcionki (sekcja 5), ale **test na żywym urządzeniu (2026-07-10) pokazał, że w praktyce NIE działają** — nazwa pliku z „ą" wyświetla „?" i plik się nie odtwarza, mimo że chiński (też spoza ASCII) działa normalnie. Prawdopodobnie brakuje konwersji Unicode→wewnętrzne kodowanie dla tego zakresu, nie tylko bitmap | **potwierdzone testem: obecnie nie działa** |
 | Czy da się mieć polskie menu bez ogonków (a,c,e,l,n,o,s,z,z)? | Tak, dużo bardziej realistyczne — czyste ASCII już teraz działa bezbłędnie na urządzeniu | wysoka |
@@ -261,6 +262,31 @@ Wygenerowanie pliku testowego z obiema grupami naraz:
 python tools/patch_strings.py extracted_z3/z3app.bin extracted_z3/z3app_test_polski_eksperymentalny.bin bezpieczna eksperymentalna
 ```
 Zweryfikowano bit-po-bicie: zmienia się dokładnie 27 bajtów w 6 rozłącznych zakresach (5×4 B + 1×7 B), zero wycieku poza granice slotów, rozmiar pliku identyczny.
+
+#### 🛑 WAŻNY WYNIK TESTU NA URZĄDZENIU (2026-07-10): jest walidacja sumy kontrolnej
+
+Test na realnym Z3:
+- **Oryginalny `z3app.bin`** (nietknięty): `Checking bin OK!` → `Erase flash 100%` → `Program flash 100%` → reboot. Działa bezbłędnie.
+- **Zmodyfikowany `z3app_test_polski.bin`** (tylko 7 bajtów zmienionych, `English`→`Polski`): zatrzymuje się na etapie `Checking bin 1169242` i **nie postępuje dalej** (sprawdzone: nic się nie zmienia po >1 minucie).
+
+**Wniosek: bootloader liczy jakąś sumę kontrolną / walidację całej zawartości pliku przed flashowaniem, i odrzuca (a właściwie: zawiesza się na) plik z nieprawidłową sumą.** To był otwarty punkt niepewności z sekcji 2 tego dokumentu ("Nie wykryto szyfrowania/kompresji") — teraz wiemy, że *walidacja integralności* na pewno istnieje, nawet jeśli sama treść nie jest szyfrowana.
+
+Liczba `1169242` (`0x11D75A`) wyświetlana na ekranie to najpewniej albo obliczona (nieprawidłowa) suma kontrolna zmodyfikowanego pliku, albo licznik pętli sprawdzającej, która nigdy nie trafia na oczekiwaną wartość i nie ma logiki timeout/retry (stąd zawieszenie, nie czytelny komunikat błędu).
+
+**Sprawdzone i WYKLUCZONE jako algorytm dający `1169242` dla `z3app_test_polski.bin`:**
+- CRC32 (zlib) w wielu wariantach zakresu (pomijanie 0-64 B na początku/końcu)
+- Prosta suma addytywna 32-bit i 16-bit (dla różnych offsetów startowych)
+- XOR 32-bit po słowach
+- CRC16 (CCITT poly 0x1021, IBM poly 0x8005; init 0x0000 i 0xFFFF)
+- Fletcher-16
+- Adler-32 (pełny i zamaskowany do 16 bit)
+
+**To oznacza, że dalsza edycja tekstu WYMAGA znalezienia i przeliczenia tej sumy kontrolnej** — bez tego żadna modyfikacja treści (nawet 1 bajt) nie przejdzie przez `Checking bin`. To podnosi próg trudności całego projektu: bez dezasemblacji (Ghidra) trafienie na właściwy algorytm i lokalizację pola sumy kontrolnej metodą prób i błędów jest bardzo mało prawdopodobne w rozsądnym czasie.
+
+**Zalecany następny krok (kolejna sesja):** Ghidra, konkretnie w tym celu:
+1. Znaleźć w kodzie funkcję odpowiedzialną za komunikat "Checking bin" (string bezpośrednio w kodzie bootloadera — ale UWAGA: bootloader może być w OSOBNYM regionie flash, niedostępnym w `z3app.bin`! Jeśli tak, trzeba by zdobyć dump całej flashy urządzenia, nie tylko pliku aktualizacji — do zweryfikowania).
+2. Zidentyfikować algorytm sumy kontrolnej i offset w pliku, gdzie oczekiwana wartość jest przechowywana (prawdopodobnie w nagłówku, pierwsze 16-32 bajty pliku, które od początku analizy nie pasowały do standardowej tablicy wektorów ARM — patrz sekcja 3, mogą to być właśnie pola magic/rozmiar/checksum, nie wektory przerwań).
+3. Dodać do `tools/patch_strings.py` automatyczne przeliczenie i zapis poprawnej sumy po każdej edycji.
 
 ### Krok 4 — Jeśli krok 1 wypadnie negatywnie (brak glifów)
 

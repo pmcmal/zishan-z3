@@ -240,6 +240,28 @@ Zmiana: bajty `0xB97EA`–`0xB97F0` (dokładnie 7 bajtów) `"English"` → `"Pol
 
 Wynik tego testu powie nam dwie rzeczy naraz: (a) czy metoda bezpiecznej podmiany bajtowej w ogóle działa na tym firmware (czy urządzenie nie waliduje sumy kontrolnej itp.), i (b) gdzie faktycznie ten string się wyświetla.
 
+#### Rozszerzenie (2026-07-10): druga partia podmian — sloty 4-bajtowe (grupa "eksperymentalna")
+
+Zmierzono precyzyjnie dostępny budżet bajtowy dla kilku kolejnych kluczowych etykiet menu — wszystkie okazały się **ścisłymi, gęsto upakowanymi slotami 4-bajtowymi (2 znaki GBK, bez separatora ani zapasu)**:
+
+| Offset | Oryginał (GBK) | Bajt po slocie | Budżet | Nowy tekst |
+|---|---|---|---|---|
+| `0xB7998` | 设置 (Ustawienia) | `0xb4` (dane) | 4 B, bez zapasu | `Ust` |
+| `0xB79CC` | 系统 (System) | `0x2c` (dane) | 4 B, bez zapasu | `Syst` |
+| `0xB967C` | 语言 (Język) | `0x6c` (dane) | 4 B, bez zapasu | `Jez` |
+| `0xB9388` | 版本 (Wersja) | `0x00` (null!) | 4 B + 1 null | `Wers` |
+| `0xB97D6` | 关于 (About, uproszczony) | `0x7c` ('\|' delimiter) | 4 B, bez zapasu | `Info` |
+
+**To potwierdza wcześniejszą obawę z tego dokumentu: budżet 4 bajtów (2 chińskie znaki) wystarcza na maksymalnie 4 litery ASCII — nie da się zmieścić pełnych polskich słów** ("Ustawienia", "System", "Język", "Wersja", "Info" → tylko "Info" pasuje bez skracania). Powyższe to więc **skróty**, nie ostateczne tłumaczenia — traktuj jako drugi test poligonowy, nie finalny efekt.
+
+**Wyższe ryzyko niż grupa "bezpieczna":** nie potwierdzone czy renderer/logika menu wymaga, żeby te sloty zawierały prawidłowe znaki GBK (2-bajtowe), czy przyjmie też czyste bajty ASCII bez problemu. To jest właśnie do sprawdzenia na urządzeniu.
+
+Wygenerowanie pliku testowego z obiema grupami naraz:
+```
+python tools/patch_strings.py extracted_z3/z3app.bin extracted_z3/z3app_test_polski_eksperymentalny.bin bezpieczna eksperymentalna
+```
+Zweryfikowano bit-po-bicie: zmienia się dokładnie 27 bajtów w 6 rozłącznych zakresach (5×4 B + 1×7 B), zero wycieku poza granice slotów, rozmiar pliku identyczny.
+
 ### Krok 4 — Jeśli krok 1 wypadnie negatywnie (brak glifów)
 
 Trzeba będzie:

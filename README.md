@@ -3,6 +3,9 @@
 Analiza i próba modyfikacji firmware odtwarzacza **ZiShan Z3** (Hi-Fi DAP, STM32F427 + DAC CS43198/ES9038) — głównie w kierunku dodania/podmiany tekstu menu na polski.
 Analysis and modification attempt of the **ZiShan Z3** DAP firmware (Hi-Fi player, STM32F427 + CS43198/ES9038 DAC) — mainly aimed at adding/replacing menu text with Polish.
 
+<img width="490" height="408" alt="images" src="https://github.com/user-attachments/assets/4b0b3b12-bbd7-4d90-b4e0-3ba825b1e9bc" />
+
+
 ---
 
 <details open>
